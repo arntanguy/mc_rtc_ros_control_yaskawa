@@ -11,6 +11,7 @@ find_package(catkin REQUIRED
   COMPONENTS
     roscpp
     std_msgs
+    control_msgs
 )
 
 catkin_package(

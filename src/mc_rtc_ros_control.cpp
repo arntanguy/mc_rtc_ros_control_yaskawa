@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include <sensor_msgs/JointState.h>
 #include <std_msgs/Float64MultiArray.h>
+#include <control_msgs/FollowJointTrajectoryAction.h>
 
 #include <mc_control/mc_global_controller.h>
 

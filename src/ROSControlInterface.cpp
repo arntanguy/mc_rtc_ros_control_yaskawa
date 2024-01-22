@@ -3,7 +3,7 @@
 #include <ros/console.h>
 #include <ros/ros.h>
 #include <sensor_msgs/JointState.h>
-#include <std_msgs/Float64MultiArray.h>
+#include <control_msgs/FollowJointTrajectoryAction.h>
 
 namespace mc_rtc_ros_control
 {
@@ -12,16 +12,21 @@ struct ROSControlInterfaceImpl
 {
   ROSControlInterfaceImpl(const std::string & subscribe_to,
                           const std::string & publish_to,
-                          const std::vector<std::string> & rjo)
-  : rjo_(rjo)
+                          const std::vector<std::string> & rjo,
+                          double timeStep = 0.005)
+  : rjo_(rjo), timeStep_(timeStep)
   {
-    msg_.layout.dim.resize(1);
-    msg_.layout.dim[0].label = "control";
-    msg_.layout.dim[0].size = rjo.size();
-    msg_.layout.dim[0].stride = msg_.layout.dim[0].size;
-    msg_.data.resize(msg_.layout.dim[0].size);
-    msg_.layout.data_offset = 0;
-    pub_ = nh_.advertise<std_msgs::Float64MultiArray>(publish_to, 1);
+    // msg_.layout.dim.resize(1);
+    // msg_.layout.dim[0].label = "control";
+    // msg_.layout.dim[0].size = rjo.size();
+    // msg_.layout.dim[0].stride = msg_.layout.dim[0].size;
+    // msg_.data.resize(msg_.layout.dim[0].size);
+    // msg_.layout.data_offset = 0;
+
+    msg_.goal.trajectory.joint_names = rjo;
+    msg_.goal.trajectory.points.resize(1);
+    msg_.goal.trajectory.points[0].positions.resize(rjo.size());
+    pub_ = nh_.advertise<control_msgs::FollowJointTrajectoryAction>(publish_to, 1);
     sub_ = nh_.subscribe(subscribe_to, 1, &ROSControlInterfaceImpl::joint_callback, this);
   }
 
@@ -46,8 +51,8 @@ struct ROSControlInterfaceImpl
                 "robot than what it expects (got: %lu, expected: %lu)",
                 msg.name.size(), rjo.size());
     }
-    msg_.layout.dim[0].size = msg.name.size();
-    msg_.data.resize(msg_.layout.dim[0].size);
+    // msg_.layout.dim[0].size = msg.name.size();
+    // msg_.data.resize(msg_.layout.dim[0].size);
     ros_to_rjo_.resize(msg.name.size());
     rjo_to_cmd_.resize(rjo.size(), std::numeric_limits<size_t>::max());
     encoders_.resize(rjo.size(), 0.0);
@@ -96,24 +101,27 @@ struct ROSControlInterfaceImpl
 
   void sendCommand(const std::vector<double> & command)
   {
+    msg_.header.stamp = ros::Time::now();
+    msg_.header.seq++;
     for(size_t i = 0; i < command.size(); ++i)
     {
-      if(rjo_to_cmd_[i] < msg_.data.size())
-      {
-        msg_.data[rjo_to_cmd_[i]] = command[i];
-      }
+      msg_.goal.trajectory.points[0].positions[rjo_to_cmd_[i]] = command[i];
+      msg_.goal.trajectory.points[0].time_from_start = ros::Duration(timeStep_);
     }
-    pub_.publish(msg_);
+    // XXX Do not publish for now, uncomment for hell
+    // pub_.publish(msg_);
   }
 
   std::vector<std::string> rjo_;
+  double timeStep_ = 0.005;
   bool init_done_ = false;
 
   ros::NodeHandle nh_;
   ros::Subscriber sub_;
   ros::Publisher pub_;
 
-  std_msgs::Float64MultiArray msg_;
+  // std_msgs::Float64MultiArray msg_;
+  control_msgs::FollowJointTrajectoryActionGoal msg_;
   std::vector<size_t> ros_to_rjo_;
   std::vector<size_t> rjo_to_cmd_;
   std::vector<double> encoders_;
