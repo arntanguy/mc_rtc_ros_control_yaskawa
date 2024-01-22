@@ -1,7 +1,7 @@
 #include <ros/ros.h>
 #include <sensor_msgs/JointState.h>
 #include <std_msgs/Float64MultiArray.h>
-#include <control_msgs/FollowJointTrajectoryAction.h>
+#include <control_msgs/FollowJointTrajectoryActionGoal.h>
 
 #include <mc_control/mc_global_controller.h>
 
@@ -33,7 +33,10 @@ struct ROSControlInterface
   {
     controller_.setEncoderValues(encoders);
     controller_.setEncoderVelocities(velocity);
-    controller_.setJointTorques(efforts);
+    if(efforts.size())
+    {
+      controller_.setJointTorques(efforts);
+    }
     if(!init_done_)
     {
       controller_.init(controller_.robot().encoderValues());
